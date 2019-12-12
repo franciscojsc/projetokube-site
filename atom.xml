@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="pt-BR"><generator uri="https://jekyllrb.com/" version="4.0.0">Jekyll</generator><link href="/projetokube-site/atom.xml" rel="self" type="application/atom+xml" /><link href="/projetokube-site/" rel="alternate" type="text/html" hreflang="pt-BR" /><updated>2019-12-12T14:25:31+00:00</updated><id>/projetokube-site/atom.xml</id><title type="html">Projeto Kube</title><subtitle>Computação em nuvem, Devops e educação</subtitle><entry><title type="html">Execução de containers Docker com Raspberry Pi</title><link href="/projetokube-site/blog/2019/12/02/exemplo-containers-docker-com-raspberry-pi.html" rel="alternate" type="text/html" title="Execução de containers Docker com Raspberry Pi" /><published>2019-12-02T00:00:00+00:00</published><updated>2019-12-02T00:31:29+00:00</updated><id>/projetokube-site/blog/2019/12/02/exemplo-containers-docker-com-raspberry-pi</id><content type="html" xml:base="/projetokube-site/blog/2019/12/02/exemplo-containers-docker-com-raspberry-pi.html">&lt;h1 id=&quot;docker-em-plataformas-arm&quot;&gt;Docker em plataformas ARM&lt;/h1&gt;
+
+&lt;p&gt;Com a parceria estratégica entre a Docker e Arm, para levar a tecnologia de contêineres para dispositivos de IoT, a Docker realizou a simplificação na forma de publicação de aplicativo em plataformas com arquiteturas &lt;a href=&quot;https://canaltech.com.br/hardware/O-que-e-um-processador-ARM/&quot;&gt;ARM&lt;/a&gt;, aumentando a portabilidade e a implantação de &lt;em&gt;softwares&lt;/em&gt; embarcados [1].&lt;!--more--&gt; Para criar uma &lt;em&gt;image&lt;/em&gt; para plataforma ARM é necessário esta em um sistema com essa arquitetura, impossibilitado a criação de uma imagem a partir de um Sistema Operacional diferente, entretanto a partir da versão 19.03 pode-se utilizar a ferramenta &lt;strong&gt;buildx&lt;/strong&gt; para criação de várias imagens com arquiteturas diferentes.&lt;/p&gt;
+
+&lt;p&gt;Em um ambiente Linux, realize a instalação do buildx, o &lt;a href=&quot;https://github.com/docker/buildx/releases&quot;&gt;repositório&lt;/a&gt;  da ferramenta está disponível na plataforma de versionamento distribuído GitHub, pode-se baixar  a ferramenta de acordo com a versão do Sistema Operacional.&lt;/p&gt;
+
+&lt;p&gt;Após o &lt;em&gt;download&lt;/em&gt;, utilizando o terminal, crie o diretório &lt;code class=&quot;highlighter-rouge&quot;&gt;cli-plugins&lt;/code&gt; e copie o binário:&lt;/p&gt;
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;mkdir&lt;/span&gt; ~/.docker/cli-plugins/ &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;chmod&lt;/span&gt; +x buildx-v0.3.1.linux-amd64 &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;cp &lt;/span&gt;buildx-v0.3.1.linux-amd64 ~/.docker/cli-plugins/docker-buildx
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Visualize se a instalação foi realizada com sucesso:&lt;/p&gt;
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker buildx &lt;span class=&quot;nt&quot;&gt;--help&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Instale o pacote  &lt;code class=&quot;highlighter-rouge&quot;&gt;qemu-user-static&lt;/code&gt; que  é um emulador de processador muito eficiente, que  suporta  vários tipos de processadores.&lt;/p&gt;
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;apt-get &lt;span class=&quot;nb&quot;&gt;install &lt;/span&gt;qemu-user-static
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Crie uma instância de construção de arquitetura múltipla:&lt;/p&gt;
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker buildx create &lt;span class=&quot;nt&quot;&gt;--name&lt;/span&gt; mybuilder &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+docker buildx use mybuilder &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+docker buildx inspect &lt;span class=&quot;nt&quot;&gt;--bootstrap&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Utilize os arquivos &lt;code class=&quot;highlighter-rouge&quot;&gt;Dockerfile&lt;/code&gt;  e &lt;code class=&quot;highlighter-rouge&quot;&gt;index.html&lt;/code&gt; para gera as imagens:&lt;/p&gt;
+&lt;div class=&quot;language-docker highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;FROM&lt;/span&gt;&lt;span class=&quot;s&quot;&gt; nginx:alpine&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;LABEL&lt;/span&gt;&lt;span class=&quot;s&quot;&gt; &quot;author&quot;=&quot;Francisco Chaves&quot;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;COPY&lt;/span&gt;&lt;span class=&quot;s&quot;&gt; ./index.html  /usr/share/nginx/html/index.html&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;language-html highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cp&quot;&gt;&amp;lt;!DOCTYPE html&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;html&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;lang=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;en&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
+
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;head&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;meta&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;charset=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;UTF-8&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;meta&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;viewport&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;content=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;width=device-width, initial-scale=1.0&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;meta&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;http-equiv=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;X-UA-Compatible&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;content=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;ie=edge&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;title&amp;gt;&lt;/span&gt;My site&lt;span class=&quot;nt&quot;&gt;&amp;lt;/title&amp;gt;&lt;/span&gt;
+
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;link&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;href=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;https://fonts.googleapis.com/css?family=Roboto&amp;amp;display=swap&quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;rel=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;stylesheet&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;style&amp;gt;&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;box-sizing&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;border-box&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;margin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;padding&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+        &lt;span class=&quot;nc&quot;&gt;.container&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;background-color&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;rgb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;101&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;47&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;252&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;height&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;100vh&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;100%&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;display&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;flex-direction&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;column&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;justify-content&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;center&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;align-items&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;center&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+        &lt;span class=&quot;nc&quot;&gt;.item&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;font-size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;2rem&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;font-family&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;'Roboto'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;sans-serif&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+        &lt;span class=&quot;nc&quot;&gt;.animation-target&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;nl&quot;&gt;animation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;animation&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1000ms&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;linear&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;infinite&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;both&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+        &lt;span class=&quot;c&quot;&gt;/* Generated with Bounce.js. Edit at http://bouncejs.com#%7Bl%3A1%2Cs%3A%5B%7BT%3A%22c%22%2Ce%3A%22s%22%2Cd%3A1000%2CD%3A0%2Cf%3A%7Bx%3A1%2Cy%3A1%7D%2Ct%3A%7Bx%3A3%2Cy%3A3%7D%2Cs%3A3%2Cb%3A4%7D%5D%7D */&lt;/span&gt;
+
+        &lt;span class=&quot;k&quot;&gt;@keyframes&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;animation&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;nt&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nl&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;matrix3d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nt&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;.2&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nl&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;matrix3d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1.53&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1.53&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nt&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;.41&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nl&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;matrix3d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1.661&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1.661&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nt&quot;&gt;12&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;.71&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nl&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;matrix3d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1.425&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1.425&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nt&quot;&gt;18&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;.92&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nl&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;matrix3d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1.138&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1.138&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nt&quot;&gt;25&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;.23&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nl&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;matrix3d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;0.997&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0.997&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nt&quot;&gt;31&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;.43&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nl&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;matrix3d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;0.969&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0.969&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nt&quot;&gt;56&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;.46&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nl&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;matrix3d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1.001&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1.001&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nt&quot;&gt;81&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;.48&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nl&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;matrix3d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+            &lt;span class=&quot;nt&quot;&gt;100&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;nl&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;matrix3d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/style&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/head&amp;gt;&lt;/span&gt;
+
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;body&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;div&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;class=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;container&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;lt;div&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;class=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;item&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
+            &lt;span class=&quot;nt&quot;&gt;&amp;lt;h1&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;class=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;animation-target&quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;Version 1&lt;span class=&quot;nt&quot;&gt;&amp;lt;/h1&amp;gt;&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;&amp;lt;/div&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;/div&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/body&amp;gt;&lt;/span&gt;
+
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/html&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;Construa as imagens e envie para o Docker Hub (necessário &lt;em&gt;login&lt;/em&gt;):&lt;/p&gt;
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker buildx build &lt;span class=&quot;nt&quot;&gt;--platform&lt;/span&gt; linux/arm,linux/arm64,linux/amd64 &lt;span class=&quot;nt&quot;&gt;-t&lt;/span&gt; franciscojsc/my-hello &lt;span class=&quot;nb&quot;&gt;.&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;--push&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;referências&quot;&gt;Referências&lt;/h2&gt;
+
+&lt;p&gt;1 TSAI, Tim. Getting started with Docker for Arm on Linux. &lt;strong&gt;DOCKER INC&lt;/strong&gt;. 7 jun. 2019. Disponível em: &lt;a href=&quot;https://engineering.docker.com/2019/06/getting-started-with-docker-for-arm-on-linux/&quot;&gt;https://engineering.docker.com/2019/06/getting-started-with-docker-for-arm-on-linux/&lt;/a&gt;. Acesso em: 27 nov. 2019.&lt;/p&gt;
+
+&lt;p&gt;Pacote: qemu-user-static (1: 4.1-2 e outros). &lt;strong&gt;DEBIAN&lt;/strong&gt;. Disponível em:  &lt;a href=&quot;https://packages.debian.org/pt-br/sid/qemu-user-static&quot;&gt;https://packages.debian.org/pt-br/sid/qemu-user-static&lt;/a&gt;. Acesso em: 28 nov. 2019.&lt;/p&gt;</content><author><name></name></author><category term="[&quot;linux&quot;, &quot;tutoriais&quot;]" /><category term="raspberry" /><category term="docker" /><summary type="html">Docker em plataformas ARM Com a parceria estratégica entre a Docker e Arm, para levar a tecnologia de contêineres para dispositivos de IoT, a Docker realizou a simplificação na forma de publicação de aplicativo em plataformas com arquiteturas ARM, aumentando a portabilidade e a implantação de softwares embarcados [1].</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="/projetokube-site/assets/img/projetokube.png" /><media:content medium="image" url="/projetokube-site/assets/img/projetokube.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Sistema voto IFS</title><link href="/projetokube-site/blog/2019/11/27/votoifs.html" rel="alternate" type="text/html" title="Sistema voto IFS" /><published>2019-11-27T00:00:00+00:00</published><updated>2019-11-27T01:25:12+00:00</updated><id>/projetokube-site/blog/2019/11/27/votoifs</id><content type="html" xml:base="/projetokube-site/blog/2019/11/27/votoifs.html">&lt;p&gt;Para fechar o semestre, desenvolvi com os alunos da disciplina programação Web 2 do IFS Lagarto, mais um sistema.&lt;/p&gt;
+
+&lt;p&gt;A proposta do sistema é computar votos de uma determinada Campanha (entenda como aula ou apresentação) através do registro anônimo do voto.
+Com ele será possível, por exemplo, saber como suas aulas são vistas e também avaliar equipes que estão apresentando os trabalhos.&lt;/p&gt;
+
+&lt;p&gt;Apesar de ser simples, o uso do sistema também possibilita a validação a implantação do docker e do dotnet core num ambiente Linux e com processador arm7 (raspberry pi 3 b+).&lt;/p&gt;
+
+&lt;p&gt;Para saber mais acesse o &lt;a href=&quot;https://github.com/CBSIIFSLagarto/VotoIFS&quot;&gt;repositório&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><category term="[&quot;laboratório&quot;]" /><category term="docker" /><category term="sistema" /><category term=".Net core" /><category term="sqlite" /><summary type="html">Para fechar o semestre, desenvolvi com os alunos da disciplina programação Web 2 do IFS Lagarto, mais um sistema. A proposta do sistema é computar votos de uma determinada Campanha (entenda como aula ou apresentação) através do registro anônimo do voto. Com ele será possível, por exemplo, saber como suas aulas são vistas e também avaliar equipes que estão apresentando os trabalhos. Apesar de ser simples, o uso do sistema também possibilita a validação a implantação do docker e do dotnet core num ambiente Linux e com processador arm7 (raspberry pi 3 b+). Para saber mais acesse o repositório</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="/projetokube-site/assets/img/projetokube.png" /><media:content medium="image" url="/projetokube-site/assets/img/projetokube.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Como adicionar um vídeo num post do blog</title><link href="/projetokube-site/blog/2019/11/19/adicionar-video-no-post.html" rel="alternate" type="text/html" title="Como adicionar um vídeo num post do blog" /><published>2019-11-19T00:00:00+00:00</published><updated>2019-11-20T00:12:08+00:00</updated><id>/projetokube-site/blog/2019/11/19/adicionar-video-no-post</id><content type="html" xml:base="/projetokube-site/blog/2019/11/19/adicionar-video-no-post.html">&lt;p&gt;É possível incluir mais de um vídeo em um post/página do site. Para tanto, use o código abaixo no local que deseja que o vídeo apareça.&lt;/p&gt;
+
+&lt;div class=&quot;language-md highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nn&quot;&gt;---&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;layout&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;post-blog&lt;/span&gt;
+&lt;span class=&quot;nn&quot;&gt;...&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;restante do texto não mostrado no trecho ...&lt;/span&gt;
+&lt;span class=&quot;nn&quot;&gt;---&lt;/span&gt;
+
+{% include widget/youtube.html video_id='ID do vídeo' %}
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;O resultado é:&lt;/p&gt;
+
+&lt;div class=&quot;embed-responsive embed-responsive-16by9 video_wrapper&quot;&gt;
+	&lt;iframe class=&quot;embed-responsive-item&quot; src=&quot;https://www.youtube.com/embed/VQdV_lqzxOI?rel=0&amp;amp;modestbranding=1&amp;amp;showinfo=0&quot; frameborder=&quot;0&quot; allowfullscreen=&quot;&quot;&gt;&lt;/iframe&gt;
+&lt;/div&gt;</content><author><name></name></author><category term="[&quot;tutoriais&quot;]" /><category term="site" /><category term="tutoriais" /><summary type="html">É possível incluir mais de um vídeo em um post/página do site. Para tanto, use o código abaixo no local que deseja que o vídeo apareça. --- layout: post-blog ... restante do texto não mostrado no trecho ... --- {% include widget/youtube.html video_id='ID do vídeo' %} O resultado é:</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="/projetokube-site/assets/img/projetokube.png" /><media:content medium="image" url="/projetokube-site/assets/img/projetokube.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Como implantar o site do Projeto Kube</title><link href="/projetokube-site/blog/2019/11/11/configuracao-deploy-site.html" rel="alternate" type="text/html" title="Como implantar o site do Projeto Kube" /><published>2019-11-11T00:00:00+00:00</published><updated>2019-11-25T16:39:29+00:00</updated><id>/projetokube-site/blog/2019/11/11/configuracao-deploy-site</id><content type="html" xml:base="/projetokube-site/blog/2019/11/11/configuracao-deploy-site.html">&lt;p&gt;O site do Projeto Kube foi desenvolvido com o &lt;a href=&quot;https://jekyllrb.com/&quot;&gt;Jekyll&lt;/a&gt; e está hospedado no &lt;a href=&quot;https://pages.github.com/&quot;&gt;Github&lt;/a&gt;. Entretanto, como utilizamos &lt;em&gt;plugins&lt;/em&gt; que não são confiáveis para o &lt;a href=&quot;https://pages.github.com/&quot;&gt;Github&lt;/a&gt;, é necessário fazer uso do &lt;a href=&quot;https://travis-ci.com/&quot;&gt;Travis&lt;/a&gt; para realizar a compilação e instalação do site.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;Neste post iremos abordar os seguintes tópicos:&lt;/p&gt;
+&lt;ul id=&quot;markdown-toc&quot;&gt;
+  &lt;li&gt;&lt;a href=&quot;#instalação&quot; id=&quot;markdown-toc-instalação&quot;&gt;Instalação&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#arquivos-do-projeto&quot; id=&quot;markdown-toc-arquivos-do-projeto&quot;&gt;Arquivos do projeto&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#configurações-do-projeto&quot; id=&quot;markdown-toc-configurações-do-projeto&quot;&gt;Configurações do projeto&lt;/a&gt;    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;#como-criar-uma-publicação-no-blog&quot; id=&quot;markdown-toc-como-criar-uma-publicação-no-blog&quot;&gt;Como criar uma publicação no blog?&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#como-adicionar-vídeos-a-uma-publicação&quot; id=&quot;markdown-toc-como-adicionar-vídeos-a-uma-publicação&quot;&gt;Como adicionar vídeos a uma publicação?&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#comentários&quot; id=&quot;markdown-toc-comentários&quot;&gt;Comentários&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#configurando-o-travis-ci-para-criar-e-implantar-o-site&quot; id=&quot;markdown-toc-configurando-o-travis-ci-para-criar-e-implantar-o-site&quot;&gt;Configurando o Travis CI para criar e implantar o site&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;#links-e-considerações&quot; id=&quot;markdown-toc-links-e-considerações&quot;&gt;Links e considerações&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;hr /&gt;
+
+&lt;h1 id=&quot;instalação&quot;&gt;Instalação&lt;/h1&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Instale o &lt;a href=&quot;https://jekyllrb.com/docs/installation/&quot;&gt;Jekyll&lt;/a&gt;: &lt;code class=&quot;highlighter-rouge&quot;&gt;gem install jekyll&lt;/code&gt;;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Instale o bundle: &lt;code class=&quot;highlighter-rouge&quot;&gt;gem install bundle&lt;/code&gt;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Faça o fork e clone de &lt;a href=&quot;https://github.com/CBSIIFSLagarto/projetokube-site&quot;&gt;Projetokube-site&lt;/a&gt;&lt;/p&gt;
+
+    &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; git clone https://github.com/{ Seu usuário do GitHub }/projetokube-site.git
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Instale as dependências do projeto: &lt;code class=&quot;highlighter-rouge&quot;&gt;bundle install&lt;/code&gt;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Modifique o &lt;code class=&quot;highlighter-rouge&quot;&gt;_config.yml&lt;/code&gt; para seu fork&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;&lt;em&gt;baseurl&lt;/em&gt; significa que o seu site está em uma subpasta. Como ele é executado como um projeto para o &lt;a href=&quot;https://pages.github.com/&quot;&gt;Github&lt;/a&gt;, é necessário que este parâmetro seja alterado.&lt;/li&gt;
+    &lt;/ul&gt;
+
+    &lt;div class=&quot;language-yml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; &lt;span class=&quot;na&quot;&gt;baseurl&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;/projetokube-site&quot;&lt;/span&gt;
+ &lt;span class=&quot;na&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Execute o servidor Jekyll &lt;code class=&quot;highlighter-rouge&quot;&gt;jekyll serve&lt;/code&gt;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Personalize o seu projeto ou ajude a resolver alguns de &lt;a href=&quot;https://github.com/CBSIIFSLagarto/projetokube-site/issues&quot;&gt;nossos problemas&lt;/a&gt;.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h1 id=&quot;arquivos-do-projeto&quot;&gt;Arquivos do projeto&lt;/h1&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;├── _draft &lt;span class=&quot;c&quot;&gt;# Para armazenar seus rascunhos, eles não serão publicados em seu site&lt;/span&gt;
+├── _data &lt;span class=&quot;c&quot;&gt;# Arquivos de configurações que podem ser acessados em qualquer lugar do site&lt;/span&gt;
+|  ├── authors.yml &lt;span class=&quot;c&quot;&gt;# Todos os membros da equipe ficam armazenados aqui&lt;/span&gt;
+├── _includes &lt;span class=&quot;c&quot;&gt;# Modelos que podem ser incluídos no projeto&lt;/span&gt;
+├── _layouts &lt;span class=&quot;c&quot;&gt;# layouts de temas (veja abaixo para detalhes)&lt;/span&gt;
+├── _portfolio &lt;span class=&quot;c&quot;&gt;# coleção de artigos a ser preenchida na página do portfólio&lt;/span&gt;
+├── _posts &lt;span class=&quot;c&quot;&gt;# Postagens do blog&lt;/span&gt;
+├── _sass &lt;span class=&quot;c&quot;&gt;# Sass parciais &lt;/span&gt;
+├── assets
+|  ├── js &lt;span class=&quot;c&quot;&gt;# Arquivos javascript, Katex, jquery, bootstrap, jekyll search, &lt;/span&gt;
+|  ├── css &lt;span class=&quot;c&quot;&gt;# Arquivos de estilos como Bootstrap, font-awesome, katex and main css&lt;/span&gt;
+|  ├── fonts &lt;span class=&quot;c&quot;&gt;# Font-Awesome, e outras fontes&lt;/span&gt;
+|  └── img &lt;span class=&quot;c&quot;&gt;# Imagens usadas para modelos&lt;/span&gt;
+├── pages
+|   ├── 404.md &lt;span class=&quot;c&quot;&gt;# Página que é exibida quando o URL estiver errada&lt;/span&gt;
+|   ├── about.md &lt;span class=&quot;c&quot;&gt;# Sobre a página da equipe&lt;/span&gt;
+|   ├── gallery.md &lt;span class=&quot;c&quot;&gt;# Página da galeria para fotos do projeto&lt;/span&gt;
+|   ├── portfolio.md &lt;span class=&quot;c&quot;&gt;# Página de portfólio para projetos&lt;/span&gt;
+|   ├── search.html &lt;span class=&quot;c&quot;&gt;# Página de pesquisa&lt;/span&gt;
+|   └── tags.md &lt;span class=&quot;c&quot;&gt;# A página de tags&lt;/span&gt;
+├── _config.yml &lt;span class=&quot;c&quot;&gt;# Configuração do site em geral&lt;/span&gt;
+└── index.html &lt;span class=&quot;c&quot;&gt;# amostra da página inicial&lt;/span&gt;
+└── .travis &lt;span class=&quot;c&quot;&gt;# Arquivo de configuração do Travis&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;configurações-do-projeto&quot;&gt;Configurações do projeto&lt;/h1&gt;
+
+&lt;p&gt;As configurações do site estão no arquivo &lt;code class=&quot;highlighter-rouge&quot;&gt;_config.yml&lt;/code&gt;. Utilize um editor de texto para alterar a maioria das configurações.&lt;/p&gt;
+
+&lt;h2 id=&quot;como-criar-uma-publicação-no-blog&quot;&gt;Como criar uma publicação no blog?&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;/projetokube-site/blog/2019/11/11/como-criar-uma-publicacao-no-blog.html&quot;&gt;Veja o que publicamos sobre isso ;)&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;como-adicionar-vídeos-a-uma-publicação&quot;&gt;Como adicionar vídeos a uma publicação?&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;/projetokube-site/blog/2019/11/19/adicionar-video-no-post.html&quot;&gt;Veja o que publicamos sobre isso ;)&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;comentários&quot;&gt;Comentários&lt;/h2&gt;
+
+&lt;p&gt;Os comentários que usamos nas publicações do blog do site são gerenciados pelo &lt;a href=&quot;http://disqus.com/&quot;&gt;Disqus&lt;/a&gt;, que é uma plataforma para a aumentar o envolvimento nos seus sites e permite que as pessoas comentem no seu blog.&lt;/p&gt;
+
+&lt;p&gt;Além de oferecer um desempenho superior quando comparado ao outros sistemas, o &lt;a href=&quot;http://disqus.com/&quot;&gt;Disqus&lt;/a&gt; garante outras vantagens para os nossos leitores. Uma delas é a possibilidade de cadastro por meio das redes sociais, como Facebook e Twitter. Porém, aqueles que preferirem também pode se registrar diretamente por meio do site do &lt;a href=&quot;http://disqus.com/&quot;&gt;Disqus&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Para ativar essa funcionalidade crie uma conta e coloque o seu identificador aqui:&lt;/p&gt;
+
+&lt;div class=&quot;language-yml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;na&quot;&gt;disqus_shortname&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;projeto-kube'&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Antes de enviar o site para o &lt;a href=&quot;https://pages.github.com/&quot;&gt;Github&lt;/a&gt; é sempre bom baixar as atualizações do projeto &lt;a href=&quot;https://github.com/CBSIIFSLagarto/projetokube-site&quot;&gt;original&lt;/a&gt; para que assim o nosso também sempre fique atualizado. Já pensou em fazer um &lt;em&gt;pull request?&lt;/em&gt;&lt;/p&gt;
+
+  &lt;p&gt;Caso você tenha dúvidas com comandos em Git &lt;a href=&quot;/projetokube-site/blog/2019/11/08/o-que-e-o-git.html&quot;&gt;veja essa publicação&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;language-sh highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;git remote add upstream https://github.com/CBSIIFSLagarto/projetokube-site.git
+git fetch upstream
+git merge upstream/master
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;configurando-o-travis-ci-para-criar-e-implantar-o-site&quot;&gt;Configurando o Travis CI para criar e implantar o site&lt;/h2&gt;
+
+&lt;p&gt;Devemos criar uma conta no &lt;a href=&quot;https://travis-ci.com/&quot;&gt;Travis&lt;/a&gt; CI para sincronizar nosso repositório &lt;a href=&quot;https://pages.github.com/&quot;&gt;GitHub&lt;/a&gt; com o &lt;a href=&quot;https://travis-ci.com/&quot;&gt;Travis&lt;/a&gt;, então temos que procurar o repositório no &lt;a href=&quot;https://travis-ci.com/&quot;&gt;Travis&lt;/a&gt; e depois clicar com o botão direito para ativar esse repositório.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://miro.medium.com/max/1675/1*BwypOVhSR_DcGHRjrZI7BA.png&quot; alt=&quot;Projeto&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Depois disso precisamos adicionar um &lt;em&gt;token&lt;/em&gt; do GitHub para o Travis CI para poder publicar o site gerado. Vá para &lt;a href=&quot;https://github.com/settings/tokens&quot;&gt;Github Token&lt;/a&gt; e crie um &lt;em&gt;token&lt;/em&gt; de acesso pessoal.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://miro.medium.com/max/2815/1*5fOAumDl3XCWD0h-Vhtfcw.png&quot; alt=&quot;Projeto&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Depois de gerar seu &lt;em&gt;token&lt;/em&gt;, copie-o imediatamente, pois ele só estará disponível apenas quando é criado. Leve esse &lt;em&gt;token&lt;/em&gt; copiado de volta à página de configurações no Travis CI, crie uma variável de ambiente chamada &lt;code class=&quot;highlighter-rouge&quot;&gt;GITHUB_TOKEN&lt;/code&gt;, cole o &lt;em&gt;token&lt;/em&gt; no campo value, verifique se “Exibir valor no log de criação” não está marcado e clique em Adicionar.&lt;/p&gt;
+
+&lt;p&gt;O nosso arquivo do &lt;a href=&quot;https://travis-ci.com/&quot;&gt;Travis&lt;/a&gt; irá realizar a implantação do site no &lt;a href=&quot;https://pages.github.com/&quot;&gt;Github&lt;/a&gt; quando um commit for realizado nos branches master e desenv. Entretanto, para que tudo isso ocorra, precisamos adicionar as seguintes variáveis de ambiente no &lt;a href=&quot;https://travis-ci.com/&quot;&gt;Travis&lt;/a&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;repo_deploy&lt;/code&gt;: Deverá ter como valor o repositório que irá hospedar o site em produção. Caso seja o mesmo repositório, informe usando o formato user/repositório.
+    &lt;ul&gt;
+      &lt;li&gt;No nosso caso o valor informado é o &lt;code class=&quot;highlighter-rouge&quot;&gt;projetokube/projetokube.github.io&lt;/code&gt;.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;repo_deploy_target: repositório que irá receber os arquivos compilados do site. Como estamos hospedando o site de uma organização, o valor padrão é o &lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;. Caso esteja utilizando um site pessoal, configure para &lt;code class=&quot;highlighter-rouge&quot;&gt;gh-pages&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;repo_deploy_branch: o repositório que irá disparar a implantação. No nosso caso é o &lt;code class=&quot;highlighter-rouge&quot;&gt;master&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Caso tenha problema com a &lt;strong&gt;URL&lt;/strong&gt; porque na compilação com a opção &lt;code class=&quot;highlighter-rouge&quot;&gt;relative_url &lt;/code&gt; ficava sem o domínio do site em todos os links ( &lt;strong&gt;CSS&lt;/strong&gt; , &lt;strong&gt;JS&lt;/strong&gt; e etc.. com isso as páginas não carregavam ) e com a opção &lt;code class=&quot;highlighter-rouge&quot;&gt;absolute_url&lt;/code&gt; que pegava a configuração que está em &lt;code class=&quot;highlighter-rouge&quot;&gt;_config.yml&lt;/code&gt;: 
+&lt;code class=&quot;highlighter-rouge&quot;&gt;url: https://cbsiifslagarto.github.io/projetokube-site&lt;/code&gt;
+e substituir quando for compilado pelo travis-ci.
+Isso não é bem um erro mais eu penso que não é a melhor forma. Porém, foi a única maneira que encontrei para corrigir o erro que não estava carregando os &lt;strong&gt;CSS&lt;/strong&gt; e &lt;strong&gt;JS&lt;/strong&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;links-e-considerações&quot;&gt;Links e considerações&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://jtemporal.com/do-tema-ao-ar/&quot;&gt;Colocando um site no ar com Jekyll: usando o terminal&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.tecmundo.com.br/institucional/104360-novidade-comentarios-tecmundo-testando-o-disqus.htm&quot;&gt;Tecmundo: Explicando um pouco sobre o disqus&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://pages.github.com/&quot;&gt;Github&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://jekyllrb.com/&quot;&gt;Jekyll&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://travis-ci.com/&quot;&gt;Travis&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://disqus.com/&quot;&gt;Disqus&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><category term="[&quot;tutoriais&quot;]" /><category term="site" /><category term="deploy" /><category term="Travis CI" /><category term="tutoriais" /><summary type="html">O site do Projeto Kube foi desenvolvido com o Jekyll e está hospedado no Github. Entretanto, como utilizamos plugins que não são confiáveis para o Github, é necessário fazer uso do Travis para realizar a compilação e instalação do site.</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="/projetokube-site/assets/img/projetokube.png" /><media:content medium="image" url="/projetokube-site/assets/img/projetokube.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Como criar uma publicação no blog</title><link href="/projetokube-site/blog/2019/11/11/como-criar-uma-publicacao-no-blog.html" rel="alternate" type="text/html" title="Como criar uma publicação no blog" /><published>2019-11-11T00:00:00+00:00</published><updated>2019-11-20T00:08:48+00:00</updated><id>/projetokube-site/blog/2019/11/11/como-criar-uma-publicacao-no-blog</id><content type="html" xml:base="/projetokube-site/blog/2019/11/11/como-criar-uma-publicacao-no-blog.html">&lt;p&gt;A inclusão de um item de blog no site é bastante simples. Para tanto faça:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Crie um arquivo na pasta &lt;code class=&quot;highlighter-rouge&quot;&gt;_post&lt;/code&gt; com a seguinte formatação de nome &lt;code class=&quot;highlighter-rouge&quot;&gt;ano-mes-dia-titulo-da-publicacao-sem-acentuacao.md&lt;/code&gt;;&lt;/p&gt;
+
+    &lt;blockquote&gt;
+      &lt;p&gt;veja alguns exemplos&lt;/p&gt;
+
+      &lt;ul&gt;
+        &lt;li&gt;2019-11-01-acesso-lab-pesquisa.md&lt;/li&gt;
+        &lt;li&gt;2019-11-11-configuracao-deploy-site.md&lt;/li&gt;
+      &lt;/ul&gt;
+    &lt;/blockquote&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Coloque o código abaixo no arquivo gerado;&lt;/p&gt;
+
+    &lt;div class=&quot;language-md highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt; ---&lt;/span&gt;
+ layout: post-blog # Existem dois layouts para publicações que você pode utilizar &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;post-blog e post&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+ date: '11 November 2019' # Data da publicação
+ title: 'Como implantar o site do Projeto Kube' # Titulo da publicação
+ subtitle: 'Configurando o Travis CI para criar e implantar o site usando o github' 
+ tags: &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;site, deploy, Travis CI&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; # Palavras chaves para a publicação
+ author-id: &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt; reinan &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; # Nomes dos autores que está em _data/authors.yml
+ feature-img: assets/img/blog/github-projetokube-site.png # Imagem da publicação opcional
+ category: linux # Se for colocar uma categoria certifique se que ela também foi criada em _category ( A categoria é opcional )
+ excerpt_separator: &lt;span class=&quot;c&quot;&gt;&amp;lt;!--more--&amp;gt;&lt;/span&gt;
+ toc: true # ou false/remover a linha
+ show_social: false # ou remova para exibir os botões de widget social.
+&lt;span class=&quot;p&quot;&gt; ---
+&lt;/span&gt;
+ Algum texto de exemplo. Ele também poderá ter uma URL para outro &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;item do blog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;](&lt;/span&gt; &lt;span class=&quot;sx&quot;&gt;/projetokube-site/blog/2019/11/01/acesso-lab-pesquisa.html&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;.
+
+ &lt;span class=&quot;c&quot;&gt;&amp;lt;!--more--&amp;gt;&lt;/span&gt;
+
+ ... restante do texto não mostrado no trecho ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Altere os valores conforme a sua necessidade; e&lt;/li&gt;
+  &lt;li&gt;Escreva seu texto;&lt;/li&gt;
+  &lt;li&gt;Realize o &lt;code class=&quot;highlighter-rouge&quot;&gt;commit&lt;/code&gt; e o &lt;code class=&quot;highlighter-rouge&quot;&gt;pull&lt;/code&gt;;&lt;/li&gt;
+  &lt;li&gt;Teste a sua modificação :D&lt;/li&gt;
+&lt;/ol&gt;</content><author><name></name></author><category term="[&quot;tutoriais&quot;]" /><category term="site" /><category term="tutoriais" /><summary type="html">A inclusão de um item de blog no site é bastante simples. Para tanto faça: Crie um arquivo na pasta _post com a seguinte formatação de nome ano-mes-dia-titulo-da-publicacao-sem-acentuacao.md; veja alguns exemplos 2019-11-01-acesso-lab-pesquisa.md 2019-11-11-configuracao-deploy-site.md Coloque o código abaixo no arquivo gerado; ```md — layout: post-blog # Existem dois layouts para publicações que você pode utilizar [post-blog e post] date: ‘11 November 2019’ # Data da publicação title: ‘Como implantar o site do Projeto Kube’ # Titulo da publicação subtitle: ‘Configurando o Travis CI para criar e implantar o site usando o github’ tags: [site, deploy, Travis CI] # Palavras chaves para a publicação author-id: [ reinan ] # Nomes dos autores que está em _data/authors.yml feature-img: assets/img/blog/github-projetokube-site.png # Imagem da publicação opcional category: linux # Se for colocar uma categoria certifique se que ela também foi criada em _category ( A categoria é opcional ) excerpt_separator:</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="/projetokube-site/assets/img/projetokube.png" /><media:content medium="image" url="/projetokube-site/assets/img/projetokube.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Instalação do Script do Raspberry no Windows</title><link href="/projetokube-site/blog/2019/11/08/exemplo-instalacao-do-script-do-raspberry-no-windows.html" rel="alternate" type="text/html" title="Instalação do Script do Raspberry no Windows" /><published>2019-11-08T00:00:00+00:00</published><updated>2019-11-11T14:15:16+00:00</updated><id>/projetokube-site/blog/2019/11/08/exemplo-instalacao-do-script-do-raspberry-no-windows</id><content type="html" xml:base="/projetokube-site/blog/2019/11/08/exemplo-instalacao-do-script-do-raspberry-no-windows.html">&lt;h2 id=&quot;instruções-para-instalação-do-script-do-raspberry-no-windows&quot;&gt;Instruções Para Instalação do Script do Raspberry no Windows&lt;/h2&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;baixar &lt;a href=&quot;https://www.pibakery.org/docs/install-win.html&quot;&gt;Pibakery&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Formatar o cartão de memória no formato NTF&lt;/li&gt;
+  &lt;li&gt;Montar os script da forma desejada no pibakery&lt;/li&gt;
+  &lt;li&gt;Baixar iso do raspberry neste &lt;a href=&quot;https://www.raspberrypi.org/downloads/raspbian/&quot;&gt;link&lt;/a&gt;
+Ou usar a isso que já vem padrão no pibakery&lt;/li&gt;
+  &lt;li&gt;Caso tenha escolhido outra isso além da padrão disponibilizada, terá que anexar a imagem no diretório do pibakery no seguinte endereço &lt;code class=&quot;highlighter-rouge&quot;&gt;C:\Program Files (x86)\PiBakery\resources\app\os&lt;/code&gt;
+E renomear a iso dependendo da versão &lt;strong&gt;full/lite&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Ex: caso a iso seja versão full, renomei no diretório da seguinte forma&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/projetokube-site/assets/img/blog/instalacao-do-script-print-2.jpg&quot; alt=&quot;alt text&quot; title=&quot;Logo Title Text 1&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Ex: caso a iso seja versão lite, renomei no diretório da seguinte forma&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/projetokube-site/assets/img/blog/instalacao-do-script-print-1.jpg&quot; alt=&quot;alt text&quot; title=&quot;Logo Title Text 1&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><category term="[&quot;devops&quot;]" /><category term="docker" /><category term="devops" /><category term="raspberry" /><category term="windows" /><summary type="html">Instruções Para Instalação do Script do Raspberry no Windows baixar Pibakery Formatar o cartão de memória no formato NTF Montar os script da forma desejada no pibakery Baixar iso do raspberry neste link Ou usar a isso que já vem padrão no pibakery Caso tenha escolhido outra isso além da padrão disponibilizada, terá que anexar a imagem no diretório do pibakery no seguinte endereço C:\Program Files (x86)\PiBakery\resources\app\os E renomear a iso dependendo da versão full/lite. Ex: caso a iso seja versão full, renomei no diretório da seguinte forma Ex: caso a iso seja versão lite, renomei no diretório da seguinte forma</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="/projetokube-site/assets/img/projetokube.png" /><media:content medium="image" url="/projetokube-site/assets/img/projetokube.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">No final das contas: o que é o Docker e como ele funciona?</title><link href="/projetokube-site/blog/2019/11/08/exemplo-no-final-das-contas-o-que-e-o-docker-e-como-ele-funciona.html" rel="alternate" type="text/html" title="No final das contas: o que é o Docker e como ele funciona?" /><published>2019-11-08T00:00:00+00:00</published><updated>2019-11-11T14:15:16+00:00</updated><id>/projetokube-site/blog/2019/11/08/exemplo-no-final-das-contas-o-que-e-o-docker-e-como-ele-funciona</id><content type="html" xml:base="/projetokube-site/blog/2019/11/08/exemplo-no-final-das-contas-o-que-e-o-docker-e-como-ele-funciona.html">&lt;p&gt;Para ter acesso ao laboratório de pesquisa é necessário fazer o cadastro no formulário eletrônico &lt;!--more--&gt;disponibilizado &lt;a href=&quot;https://forms.gle/DRYwnfGJ7pUeYNMB9&quot;&gt;aqui&lt;/a&gt; ou através do link encurtado http://abre.ai/labpesquisacbsicoinf.&lt;/p&gt;
+
+&lt;p&gt;Desta forma qualquer professor da CBSI/COINF poderá entregar as chaves de acesso às instalações.&lt;/p&gt;
+
+&lt;p&gt;Neste link também consta a lista dos alunos que já estão cadastrados, permitindo que vocês possam gerenciar quem pode ou não permanecer no laboratório.&lt;/p&gt;</content><author><name></name></author><category term="[&quot;devops&quot;]" /><category term="docker" /><category term="devops" /><summary type="html">Para ter acesso ao laboratório de pesquisa é necessário fazer o cadastro no formulário eletrônico</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="/projetokube-site/assets/img/projetokube.png" /><media:content medium="image" url="/projetokube-site/assets/img/projetokube.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">O que é o git?</title><link href="/projetokube-site/blog/2019/11/08/o-que-e-o-git.html" rel="alternate" type="text/html" title="O que é o git?" /><published>2019-11-08T00:00:00+00:00</published><updated>2019-11-13T16:28:39+00:00</updated><id>/projetokube-site/blog/2019/11/08/o-que-e-o-git</id><content type="html" xml:base="/projetokube-site/blog/2019/11/08/o-que-e-o-git.html">&lt;h2 id=&quot;o-que-é-git&quot;&gt;O que é Git&lt;/h2&gt;
+
+&lt;p&gt;Git é um sistema open-source de controle de versão utilizado pela grande maioria dos desenvolvedores atualmente ele podemos criar todo o histórico de alterações no codigo dos nossos projeto e facilmente voltar para qualquer ponto para saber como o código estava em determinada data.
+Além disso o git nos ajudaa muito a controlar o fluxo de novas funcionalidades entre vários desenvolvedores no mesmo projeto com ferramentas para análise e resolução de conflitos quando o mesmo arquivo é editado por mais de uma pessoa em funcionalidades diferentes&lt;/p&gt;
+
+&lt;h2 id=&quot;como-utilizar-o-git&quot;&gt;como utilizar o git&lt;/h2&gt;
+&lt;p&gt;Crie um a pasta vazia e abra o git bash e em seguida digite o comando &lt;code class=&quot;highlighter-rouge&quot;&gt;git init&lt;/code&gt; com isso voçê cria um repositório git dentro da pasta vazia .Dentro dessa pasta vai ficar todos os arquivos do seu projeto onde sera possível utlilizar o serviço de controle de versão através dos &lt;code class=&quot;highlighter-rouge&quot;&gt;comandos git&lt;/code&gt; tanto para voltar para uma versão anterior como para retornar para versões mais recentes&lt;/p&gt;
+
+&lt;h2 id=&quot;comandos-basicos-do-git-e-suas-funcionalidades&quot;&gt;comandos basicos do git e suas funcionalidades&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git status&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git init&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git commit&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git add&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git add*&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git log&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git checkout &lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git diff&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git pull&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git push&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git reset head&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git status&lt;/code&gt; : mostra o status atual do repositório git caso tenha algo para adicionar ao repositório ele mostra.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git init&lt;/code&gt; : usado para iniciar um repositório git .&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git add&lt;/code&gt; :  usado para adicionar um arquivo a um repositório git.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git add*&lt;/code&gt; : usado para adicionar vários arquivos a um repositório git de uma só vez.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git commit&lt;/code&gt; : esse comando serve para  apos você fazer um &lt;code class=&quot;highlighter-rouge&quot;&gt;git add&lt;/code&gt; comentar algo para quando você estiver em uma outra versão e queira voltar para determinada versão você consegue identificar a versão devido ao comentário.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git log&lt;/code&gt; : usado para mostrar todas alterações que foi feitas nos arquivos.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git checkout&lt;/code&gt; : utilizado para voltar ou retornar para a versão que voçê quer do seu projeto.Digitanto &lt;code class=&quot;highlighter-rouge&quot;&gt;git log &lt;/code&gt; vai listar todas suas versões é só copiar a numeração da versão e colar na frente do comando &lt;code class=&quot;highlighter-rouge&quot;&gt;git checkout&lt;/code&gt; e apertar enter para voltar para aquela versão caso queira retornar para a última versão do seu projeto digite &lt;code class=&quot;highlighter-rouge&quot;&gt;git checkout master&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git push&lt;/code&gt; : usado para enviar um projeto para um lugar remoto um exemplo seria enviar um projeto para o &lt;code class=&quot;highlighter-rouge&quot;&gt;github&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Git pull&lt;/code&gt; : usado quando tem mais de uma pessoa trabalhando em um mesmo projeto onde após  usado para baixar a diferença do seu projeto para o que está em um local remoto para isso usa-se o comando &lt;code class=&quot;highlighter-rouge&quot;&gt;git pull&lt;/code&gt;pois todos da equipe tem que está atualizado de como esta o projeto para a partir  disso implentar mais coisas&lt;/p&gt;</content><author><name></name></author><category term="[&quot;git&quot;]" /><category term="git" /><category term="github" /><summary type="html">O que é Git Git é um sistema open-source de controle de versão utilizado pela grande maioria dos desenvolvedores atualmente ele podemos criar todo o histórico de alterações no codigo dos nossos projeto e facilmente voltar para qualquer ponto para saber como o código estava em determinada data. Além disso o git nos ajudaa muito a controlar o fluxo de novas funcionalidades entre vários desenvolvedores no mesmo projeto com ferramentas para análise e resolução de conflitos quando o mesmo arquivo é editado por mais de uma pessoa em funcionalidades diferentes como utilizar o git Crie um a pasta vazia e abra o git bash e em seguida digite o comando git init com isso voçê cria um repositório git dentro da pasta vazia .Dentro dessa pasta vai ficar todos os arquivos do seu projeto onde sera possível utlilizar o serviço de controle de versão através dos comandos git tanto para voltar para uma versão anterior como para retornar para versões mais recentes comandos basicos do git e suas funcionalidades Git status Git init Git commit Git add Git add* Git log Git checkout Git diff Git pull Git push Git reset head Git status : mostra o status atual do repositório git caso tenha algo para adicionar ao repositório ele mostra. Git init : usado para iniciar um repositório git . Git add : usado para adicionar um arquivo a um repositório git. Git add* : usado para adicionar vários arquivos a um repositório git de uma só vez. Git commit : esse comando serve para apos você fazer um git add comentar algo para quando você estiver em uma outra versão e queira voltar para determinada versão você consegue identificar a versão devido ao comentário. Git log : usado para mostrar todas alterações que foi feitas nos arquivos. Git checkout : utilizado para voltar ou retornar para a versão que voçê quer do seu projeto.Digitanto git log vai listar todas suas versões é só copiar a numeração da versão e colar na frente do comando git checkout e apertar enter para voltar para aquela versão caso queira retornar para a última versão do seu projeto digite git checkout master. Git push : usado para enviar um projeto para um lugar remoto um exemplo seria enviar um projeto para o github Git pull : usado quando tem mais de uma pessoa trabalhando em um mesmo projeto onde após usado para baixar a diferença do seu projeto para o que está em um local remoto para isso usa-se o comando git pullpois todos da equipe tem que está atualizado de como esta o projeto para a partir disso implentar mais coisas</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="/projetokube-site/assets/img/projetokube.png" /><media:content medium="image" url="/projetokube-site/assets/img/projetokube.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Acesso ao laboratório de pesquisa</title><link href="/projetokube-site/blog/2019/11/01/acesso-lab-pesquisa.html" rel="alternate" type="text/html" title="Acesso ao laboratório de pesquisa" /><published>2019-11-01T00:00:00+00:00</published><updated>2019-11-25T16:39:29+00:00</updated><id>/projetokube-site/blog/2019/11/01/acesso-lab-pesquisa</id><content type="html" xml:base="/projetokube-site/blog/2019/11/01/acesso-lab-pesquisa.html">&lt;p&gt;Para ter acesso ao laboratório de pesquisa é necessário fazer o cadastro no formulário eletrônico &lt;!--more--&gt;disponibilizado &lt;a href=&quot;https://forms.gle/DRYwnfGJ7pUeYNMB9&quot;&gt;aqui&lt;/a&gt; ou através do link encurtado http://abre.ai/labpesquisacbsicoinf.&lt;/p&gt;
+
+&lt;p&gt;Desta forma qualquer professor da CBSI/COINF poderá entregar as chaves de acesso às instalações.&lt;/p&gt;
+
+&lt;p&gt;Neste link também consta a lista dos alunos que já estão cadastrados, permitindo que vocês possam gerenciar quem pode ou não permanecer no laboratório.&lt;/p&gt;</content><author><name></name></author><category term="[&quot;acesso&quot;, &quot;laboratório&quot;]" /><category term="acesso" /><category term="laboratório pesquisa" /><summary type="html">Para ter acesso ao laboratório de pesquisa é necessário fazer o cadastro no formulário eletrônico</summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="/projetokube-site/assets/img/projetokube.png" /><media:content medium="image" url="/projetokube-site/assets/img/projetokube.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry></feed>
